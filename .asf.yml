@@ -25,7 +25,7 @@ github:
     merge:   true
     rebase:  false
   protected_branches:
-    master:
+    main:
       required_status_checks:
         strict: true
       required_pull_request_reviews:
