@@ -31,7 +31,6 @@ import (
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/constants"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/dal"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/queue"
-	_ "github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/queue"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/schedule"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/util"
 	"google.golang.org/grpc"
