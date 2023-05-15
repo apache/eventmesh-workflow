@@ -143,16 +143,16 @@ func (j *jqer) recursiveEvaluate(data, query interface{}) ([]interface{}, error)
 		return out, nil
 	}
 
-	switch query.(type) {
+	switch query := query.(type) {
 	case bool:
 	case int:
 	case float64:
 	case string:
-		return j.recurseIntoString(data, query.(string))
+		return j.recurseIntoString(data, query)
 	case map[string]interface{}:
-		return j.recurseIntoMap(data, query.(map[string]interface{}))
+		return j.recurseIntoMap(data, query)
 	case []interface{}:
-		return j.recurseIntoArray(data, query.([]interface{}))
+		return j.recurseIntoArray(data, query)
 	default:
 		return nil, fmt.Errorf("unexpected type: %s", reflect.TypeOf(query).String())
 	}

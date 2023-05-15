@@ -120,7 +120,6 @@ func (c *WorkflowController) QueryDetail(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, &QueryWorkflowResponse{Workflow: *res})
-	return
 }
 
 // Delete delete a workflow

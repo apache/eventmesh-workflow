@@ -18,6 +18,11 @@
 github:
   description: EventMesh workflow
   homepage: https://eventmesh.apache.org/
+  features:
+    # Enable issue management
+    issues: true
+    # Enable wiki
+    wiki: true
   labels:
     - pubsub
   enabled_merge_buttons:
