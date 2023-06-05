@@ -76,7 +76,7 @@ const (
 	MetricsOperationTask = "operation_task"
 	MetricsSwitchTask    = "switch_task"
 	MetricsScheduler     = "scheduler"
-	MetricsEngine        = "engine"
+	MetricsEngine        = "eventmesh_workflow"
 	MetricsTaskQueue     = "task_queue"
 )
 
