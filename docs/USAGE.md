@@ -1,33 +1,33 @@
-# EventMesh Workflow 使用说明
+# EventMesh Workflow User Guide
 
-> **版本**: v1.0.0 | **更新时间**: 2026-06-29
+> **Version**: v1.0.0 | **Updated**: 2026-06-29
 
 ---
 
-## 1. 快速开始
+## 1. Quick Start
 
-### 1.1 环境准备
+### 1.1 Prerequisites
 
-| 依赖 | 版本 | 说明 |
+| Dependency | Version | Purpose |
 | --- | --- | --- |
-| Go | ≥ 1.18 | 编译运行 |
-| MySQL | ≥ 5.7 | 持久化存储 |
-| EventMesh | - | 事件总线 / Catalog 服务 |
+| Go | >= 1.18 | Compilation & runtime |
+| MySQL | >= 5.7 | Persistent storage |
+| EventMesh | - | Event bus / Catalog service |
 
-### 1.2 初始化数据库
+### 1.2 Initialize Database
 
 ```bash
 mysql -u root -p < distribution/mysql-schema.sql
 ```
 
-### 1.3 编译
+### 1.3 Build
 
 ```bash
 make build
-# 产物: bin/eventmesh-workflow
+# Output: bin/eventmesh-workflow
 ```
 
-### 1.4 启动
+### 1.4 Run
 
 ```bash
 # Controller (HTTP API)
@@ -37,15 +37,15 @@ make build
 ./bin/eventmesh-workflow engine --config configs/engine.yaml
 ```
 
-Controller 默认端口见 `configs/controller.yaml` 的 `server.port`，Swagger 文档在 `/swagger/index.html`。
+The Controller default port is set in `configs/controller.yaml` under `server.port`. Swagger docs are at `/swagger/index.html`.
 
 ---
 
-## 2. DSL 编写指南
+## 2. DSL Writing Guide
 
-### 2.1 DSL 1.0.3 (推荐)
+### 2.1 DSL 1.0.3 (Recommended)
 
-使用 `document` + `do` 结构：
+Use `document` + `do` structure:
 
 ```yaml
 document:
@@ -67,9 +67,9 @@ do:
       then: end
 ```
 
-### 2.2 DSL 0.8 (兼容)
+### 2.2 DSL 0.8 (Legacy Compatible)
 
-使用 `id` + `states` 结构：
+Use `id` + `states` structure:
 
 ```yaml
 id: my-legacy-workflow
@@ -95,13 +95,13 @@ functions:
     type: asyncapi
 ```
 
-两种格式可混用，解析器自动检测。
+Both formats can coexist; the parser auto-detects.
 
 ---
 
-## 3. 任务类型详解
+## 3. Task Types Reference
 
-### 3.1 call — 调用外部操作
+### 3.1 call — Invoke External Operations
 
 ```yaml
 - sendOrder:
@@ -111,17 +111,17 @@ functions:
     then: nextStep
 ```
 
-支持的 call 类型：
+Supported call types:
 
-| call 值 | with 参数 | 解析行为 |
+| call Value | with Params | Resolution Behavior |
 | --- | --- | --- |
-| `http` | `endpoint` | HTTP 端点作为 operation name |
-| `asyncapi` | `operation` / `channel` / `document` | EventMesh catalog 查询 |
-| `openapi` | `operationId` / `operation` / `document` | REST API 操作 |
-| `grpc` | `service` / `method` | gRPC 服务方法 |
+| `http` | `endpoint` | HTTP endpoint as operation name |
+| `asyncapi` | `operation` / `channel` / `document` | EventMesh catalog query |
+| `openapi` | `operationId` / `operation` / `document` | REST API operation |
+| `grpc` | `service` / `method` | gRPC service method |
 | `a2a` | `endpoint` | A2A Agent URL |
 
-A2A 调用示例：
+A2A call example:
 
 ```yaml
 - askAgent:
@@ -131,7 +131,7 @@ A2A 调用示例：
     then: processResult
 ```
 
-### 3.2 listen — 监听事件
+### 3.2 listen — Listen for Events
 
 ```yaml
 - waitForEvent:
@@ -144,7 +144,7 @@ A2A 调用示例：
     then: processOrder
 ```
 
-### 3.3 switch — 条件分支
+### 3.3 switch — Conditional Branching
 
 ```yaml
 - checkResult:
@@ -159,9 +159,9 @@ A2A 调用示例：
           then: end
 ```
 
-条件表达式使用 JQ 语法，`.field` 引用输入 JSON 字段。
+Condition expressions use JQ syntax; `.field` references input JSON fields.
 
-### 3.4 set — 数据转换
+### 3.4 set — Data Transformation
 
 ```yaml
 - transform:
@@ -171,7 +171,7 @@ A2A 调用示例：
     then: nextStep
 ```
 
-### 3.5 do — 子任务序列
+### 3.5 do — Sub-task Sequence
 
 ```yaml
 - processBatch:
@@ -185,9 +185,9 @@ A2A 调用示例：
     then: nextStep
 ```
 
-do 内的子任务目前支持 `set` 和 `raise`。
+Sub-tasks within `do` currently support `set` and `raise`.
 
-### 3.6 fork — 并行分支
+### 3.6 fork — Parallel Branches
 
 ```yaml
 - parallelTasks:
@@ -204,7 +204,7 @@ do 内的子任务目前支持 `set` 和 `raise`。
     then: joinPoint
 ```
 
-### 3.7 for — 循环迭代
+### 3.7 for — Loop Iteration
 
 ```yaml
 - processItems:
@@ -218,7 +218,7 @@ do 内的子任务目前支持 `set` 和 `raise`。
     then: nextStep
 ```
 
-### 3.8 try — 错误处理
+### 3.8 try — Error Handling
 
 ```yaml
 - safeOperation:
@@ -236,7 +236,7 @@ do 内的子任务目前支持 `set` 和 `raise`。
     then: continue
 ```
 
-### 3.9 wait — 延迟
+### 3.9 wait — Delay
 
 ```yaml
 - pause:
@@ -245,9 +245,9 @@ do 内的子任务目前支持 `set` 和 `raise`。
     then: nextStep
 ```
 
-支持 Go duration 格式：`10s`, `1m`, `500ms`, `1h30m`。
+Supports Go duration format: `10s`, `1m`, `500ms`, `1h30m`.
 
-### 3.10 raise — 抛出错误
+### 3.10 raise — Throw Error
 
 ```yaml
 - validate:
@@ -271,7 +271,7 @@ do 内的子任务目前支持 `set` 和 `raise`。
         detail: '${ .error }'
 ```
 
-### 3.11 run — 发布事件
+### 3.11 run — Publish Event
 
 ```yaml
 - fireEvent:
@@ -281,7 +281,7 @@ do 内的子任务目前支持 `set` 和 `raise`。
     then: end
 ```
 
-### 3.12 emit — 发出事件 (同 run)
+### 3.12 emit — Emit Event (same as run)
 
 ```yaml
 - emitEvent:
@@ -292,9 +292,9 @@ do 内的子任务目前支持 `set` 和 `raise`。
 
 ---
 
-## 4. 数据输入输出
+## 4. Data Input & Output
 
-### 4.1 工作流级 input
+### 4.1 Workflow-Level Input
 
 ```yaml
 document:
@@ -312,9 +312,9 @@ do:
         operation: file://order.yaml#process
 ```
 
-启动工作流时传入的 JSON 会通过 `input.from` 过滤后再传递给第一个任务。
+The JSON passed when starting a workflow is filtered through `input.from` before being passed to the first task.
 
-### 4.2 任务级 input/output 过滤
+### 4.2 Task-Level Input/Output Filters
 
 ```yaml
 - step1:
@@ -328,10 +328,10 @@ do:
     then: step2
 ```
 
-- `input.from`: 从上游数据中提取字段作为本任务输入
-- `output.as`: 从本任务输出中提取字段传递给下游
+- `input.from`: Extracts fields from upstream data as task input
+- `output.as`: Extracts fields from task output to pass downstream
 
-### 4.3 内联数据
+### 4.3 Inline Data
 
 ```yaml
 - step1:
@@ -341,11 +341,11 @@ do:
     then: end
 ```
 
-`data` 字段提供静态初始数据，优先级低于 input 传入的数据。
+The `data` field provides static initial data; lower priority than externally passed input.
 
 ---
 
-## 5. 调度配置
+## 5. Schedule Configuration
 
 ```yaml
 document:
@@ -366,44 +366,44 @@ do:
       then: end
 ```
 
-| 字段 | 说明 |
+| Field | Description |
 | --- | --- |
-| `start` | ISO 8601 时间，调度开始时间 |
-| `cron` | Cron 表达式 |
-| `after` | ISO 8601 间隔 (PT5M = 5 分钟) |
+| `start` | ISO 8601 datetime, schedule start time |
+| `cron` | Cron expression |
+| `after` | ISO 8601 interval (PT5M = 5 minutes) |
 
 ---
 
-## 6. 流程控制
+## 6. Flow Control
 
-### 6.1 then 指令
+### 6.1 then Directive
 
 ```yaml
-then: nextTaskName    # 跳转到命名任务
-then: end             # 终止工作流
-then: exit            # 同 end
-then: continue        # 同 end（当前未实现循环语义）
+then: nextTaskName    # Jump to named task
+then: end             # Terminate workflow
+then: exit            # Same as end
+then: continue        # Same as end (loop semantics not yet implemented)
 ```
 
-### 6.2 隐式顺序
+### 6.2 Implicit Sequencing
 
-如果任务未指定 `then` 而有嵌套子任务（do/fork/for/try），默认跳转到第一个子任务。
+If a task has no explicit `then` but has nested sub-tasks (do/fork/for/try), it defaults to the first child task.
 
 ---
 
-## 7. REST API 参考
+## 7. REST API Reference
 
-### 7.1 工作流 CRUD
+### 7.1 Workflow CRUD
 
-| 方法 | 路径 | 说明 |
+| Method | Path | Description |
 | --- | --- | --- |
-| POST | `/workflow` | 创建/更新工作流 |
-| GET | `/workflow` | 查询工作流列表 |
-| GET | `/workflow/:workflowId` | 查询工作流详情 |
-| DELETE | `/workflow/:workflowId` | 删除工作流 |
-| GET | `/workflow/instances` | 查询运行实例 |
+| POST | `/workflow` | Create/update workflow |
+| GET | `/workflow` | List workflows |
+| GET | `/workflow/:workflowId` | Get workflow details |
+| DELETE | `/workflow/:workflowId` | Delete workflow |
+| GET | `/workflow/instances` | Query running instances |
 
-### 7.2 创建/更新工作流
+### 7.2 Create / Update Workflow
 
 ```bash
 curl -X POST http://localhost:8080/workflow \
@@ -415,15 +415,15 @@ curl -X POST http://localhost:8080/workflow \
   }'
 ```
 
-**注意**: `definition` 是完整的 DSL YAML 文本，创建时 `workflow_id` 必须与 DSL 中的 `document.name` 或 `id` 一致。
+**Note**: `definition` is the full DSL YAML text. When creating, `workflow_id` must match `document.name` or `id` in the DSL.
 
-### 7.3 查询工作流列表
+### 7.3 List Workflows
 
 ```bash
 curl "http://localhost:8080/workflow?page=1&size=20"
 ```
 
-响应：
+Response:
 
 ```json
 {
@@ -441,21 +441,21 @@ curl "http://localhost:8080/workflow?page=1&size=20"
 }
 ```
 
-### 7.4 删除工作流
+### 7.4 Delete Workflow
 
 ```bash
 curl -X DELETE http://localhost:8080/workflow/order-management
 ```
 
-执行软删除（status → -1），关联的任务、关系、实例同时标记。
+Performs soft delete (status → -1); related tasks, relations, and instances are also marked.
 
 ---
 
-## 8. A2A 集成
+## 8. A2A Integration
 
-### 8.1 工作流作为 Agent
+### 8.1 Workflow as Agent
 
-启动内置 A2A 端点：
+Start the built-in A2A endpoint:
 
 ```go
 agent := bridge.NewWorkflowAgent("my-workflow", "http://localhost:9090")
@@ -464,13 +464,13 @@ agent.RegisterRoutes(mux)
 http.ListenAndServe(":9090", mux)
 ```
 
-外部 A2A Client 调用：
+External A2A Client calls:
 
 ```bash
-# 获取 Agent Card
+# Get Agent Card
 curl http://localhost:9090/.well-known/agent-card.json
 
-# 提交任务 (触发工作流执行)
+# Submit task (triggers workflow execution)
 curl -X POST http://localhost:9090/a2a/tasks \
   -H "Content-Type: application/json" \
   -d '{
@@ -480,13 +480,13 @@ curl -X POST http://localhost:9090/a2a/tasks \
     }
   }'
 
-# 查询状态
+# Query status
 curl http://localhost:9090/a2a/tasks/{task_id}
 ```
 
-### 8.2 工作流调用 A2A Agent
+### 8.2 Workflow Calling A2A Agent
 
-在 DSL 中配置 `call: a2a`：
+Configure `call: a2a` in DSL:
 
 ```yaml
 - aiAnalysis:
@@ -498,11 +498,11 @@ curl http://localhost:9090/a2a/tasks/{task_id}
 
 ---
 
-## 9. 完整示例
+## 9. Complete Examples
 
-### 9.1 订单处理工作流 (DSL 1.0.3)
+### 9.1 Order Processing Workflow (DSL 1.0.3)
 
-文件: `configs/testcreateworkflow-v1.yaml`
+File: `configs/testcreateworkflow-v1.yaml`
 
 ```yaml
 document:
@@ -550,7 +550,7 @@ do:
       then: end
 ```
 
-### 9.2 数据转换 + 并行处理
+### 9.2 Data Transform + Parallel Processing
 
 ```yaml
 document:
@@ -587,48 +587,48 @@ do:
 
 ---
 
-## 10. 开发调试
+## 10. Development & Debugging
 
-### 10.1 运行测试
+### 10.1 Run Tests
 
 ```bash
 make test
 ```
 
-测试覆盖：
+Test coverage:
 
-| 包 | 测试数量 | 内容 |
+| Package | Test Count | Content |
 | --- | --- | --- |
-| third_party/swf | 17 | V1/旧版解析、Fork/Try/For、Schedule/Output、校验、集成测试 |
-| internal/filter | 1 | JQ 过滤正常/异常路径 |
+| third_party/swf | 17 | V1/legacy parsing, Fork/Try/For, Schedule/Output, validation, integration tests |
+| internal/filter | 1 | JQ filtering happy/error paths |
 
-### 10.2 格式化
+### 10.2 Formatting
 
 ```bash
 make fmt       # goimports + gofmt
 ```
 
-### 10.3 代码检查
+### 10.3 Linting
 
 ```bash
 make lint      # golangci-lint
 ```
 
-### 10.4 覆盖率
+### 10.4 Coverage
 
 ```bash
-make cover     # 生成 HTML 覆盖率报告
+make cover     # Generate HTML coverage report
 ```
 
-### 10.5 本地调试技巧
+### 10.5 Local Debugging Tips
 
-1. 使用 **InMemoryQueue**（配置 `engine.yaml` 中 `flow.queue.store: in-memory`）避免依赖 EventMesh
-2. OperationTask 的 `runA2AAction` 可通过 Mock A2A Agent 验证
-3. LocalRuntimeTask 完全自包含，可独立测试
+1. Use **InMemoryQueue** (`engine.yaml`: `flow.queue.store: in-memory`) to avoid EventMesh dependency
+2. OperationTask's `runA2AAction` can be verified with a Mock A2A Agent
+3. LocalRuntimeTask is fully self-contained and can be tested independently
 
 ---
 
-## 11. 配置参考
+## 11. Configuration Reference
 
 ### controller.yaml
 
@@ -659,23 +659,23 @@ catalog:
 
 ---
 
-## 12. 限制与规划
+## 12. Limitations & Roadmap
 
-### 当前限制
+### Current Limitations
 
-| 项目 | 说明 |
+| Item | Description |
 | --- | --- |
-| for 迭代 | body 内目前仅支持 set 任务 |
-| try/catch | when 内的任务类型有限 |
-| 嵌套 do | 运行时仅执行 set/raise，复杂子任务尚不支持 |
-| A2A streaming | 暂不支持流式响应 |
-| 错误重试 | 全局 retry_attempts=5，未按任务配置 |
+| for iteration | Body currently supports only set tasks |
+| try/catch | Limited task types within when blocks |
+| nested do | Runtime only executes set/raise; complex sub-tasks not yet supported |
+| A2A streaming | Streaming responses not yet supported |
+| error retry | Global retry_attempts=5, not per-task configurable |
 
-### 规划功能
+### Planned Features
 
-- [ ] for/do/try 内完整任务类型支持
-- [ ] 子工作流调用 (subFlow)
-- [ ] 条件重试与超时配置
-- [ ] A2A 流式支持
-- [ ] WorkflowAgent 完整实例状态查询
-- [ ] DSL 1.0.3 auth/error/timeout 完整字段
+- [ ] Full task type support inside for/do/try
+- [ ] Sub-workflow invocation (subFlow)
+- [ ] Conditional retry and timeout configuration
+- [ ] A2A streaming support
+- [ ] WorkflowAgent full instance status query
+- [ ] DSL 1.0.3 auth/error/timeout full field support
