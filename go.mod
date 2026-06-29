@@ -28,7 +28,6 @@ require (
 	github.com/itchyny/gojq v0.12.8
 	github.com/prometheus/client_golang v1.12.2
 	github.com/reactivex/rxgo/v2 v2.5.0
-	github.com/serverlessworkflow/sdk-go/v2 v2.1.1
 	github.com/stretchr/testify v1.8.1
 	github.com/swaggo/files v1.0.0
 	github.com/swaggo/gin-swagger v1.5.3

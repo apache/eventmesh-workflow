@@ -18,6 +18,8 @@ package task
 import (
 	"context"
 	"encoding/json"
+	"strconv"
+
 	"github.com/apache/incubator-eventmesh/eventmesh-server-go/config"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/constants"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/dal"
@@ -27,7 +29,6 @@ import (
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/third_party/jqer"
 	"github.com/gogf/gf/util/gconv"
 	"github.com/google/uuid"
-	"strconv"
 )
 
 type switchTask struct {
@@ -56,35 +57,57 @@ func (t *switchTask) Run() error {
 	if len(t.transitions) == 0 {
 		return nil
 	}
+	var defaultTransition *model.WorkflowTaskRelation
 	for _, transition := range t.transitions {
-		if transition.ToTaskID == constants.TaskEndID {
+		if transition == nil {
 			continue
 		}
-		var jqData interface{}
-		err := json.Unmarshal([]byte(t.input), &jqData)
+		if transition.Condition == "" {
+			defaultTransition = transition
+			continue
+		}
+		matched, err := t.matchCondition(transition.Condition)
 		if err != nil {
 			return err
 		}
-		res, err := t.jq.One(jqData, transition.Condition)
-		if err != nil {
-			return err
-		}
-		boolValue, err := strconv.ParseBool(gconv.String(res))
-		if err != nil {
-			return err
-		}
-		if !boolValue {
+		if !matched {
 			metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchReject)
 			continue
 		}
-
 		metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchPass)
-		var taskInstance = model.WorkflowTaskInstance{WorkflowInstanceID: t.workflowInstanceID,
-			WorkflowID: t.workflowID, TaskID: transition.ToTaskID, TaskInstanceID: uuid.New().String(),
-			Status: constants.TaskInstanceWaitStatus, Input: t.baseTask.input}
-		return t.baseTask.queue.Publish([]*model.WorkflowTaskInstance{&taskInstance})
+		return t.publishOrComplete(transition)
 	}
-	// not match
+	if defaultTransition != nil {
+		metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchPass)
+		return t.publishOrComplete(defaultTransition)
+	}
+	return t.completeWorkflow()
+}
+
+func (t *switchTask) matchCondition(condition string) (bool, error) {
+	var jqData interface{}
+	err := json.Unmarshal([]byte(t.input), &jqData)
+	if err != nil {
+		return false, err
+	}
+	res, err := t.jq.One(jqData, condition)
+	if err != nil {
+		return false, err
+	}
+	return strconv.ParseBool(gconv.String(res))
+}
+
+func (t *switchTask) publishOrComplete(transition *model.WorkflowTaskRelation) error {
+	if transition == nil || transition.ToTaskID == constants.TaskEndID {
+		return t.completeWorkflow()
+	}
+	var taskInstance = model.WorkflowTaskInstance{WorkflowInstanceID: t.workflowInstanceID,
+		WorkflowID: t.workflowID, TaskID: transition.ToTaskID, TaskInstanceID: uuid.New().String(),
+		Status: constants.TaskInstanceWaitStatus, Input: t.baseTask.input}
+	return t.baseTask.queue.Publish([]*model.WorkflowTaskInstance{&taskInstance})
+}
+
+func (t *switchTask) completeWorkflow() error {
 	return t.workflowDAL.UpdateInstance(context.Background(),
 		&model.WorkflowInstance{WorkflowInstanceID: t.workflowInstanceID,
 			WorkflowStatus: constants.WorkflowInstanceSuccessStatus})

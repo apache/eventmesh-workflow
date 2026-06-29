@@ -17,6 +17,8 @@ package filter
 
 import (
 	"encoding/json"
+	"strings"
+
 	"github.com/apache/incubator-eventmesh/eventmesh-server-go/log"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/dal/model"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/third_party/jqer"
@@ -41,7 +43,7 @@ func filterJsonData(filterJson string, inputDataJson string) (string, error) {
 		return "", err
 	}
 	jq := jqer.NewJQ()
-	ret, err := jq.Object(jsonObj, filterJson)
+	ret, err := jq.Object(jsonObj, normalizeFilterExpression(filterJson))
 	if err != nil {
 		return "", err
 	}
@@ -50,4 +52,12 @@ func filterJsonData(filterJson string, inputDataJson string) (string, error) {
 		return "", err
 	}
 	return string(outputDataJson), nil
+}
+
+func normalizeFilterExpression(filterJson string) string {
+	trimmed := strings.TrimSpace(filterJson)
+	if strings.HasPrefix(trimmed, "${") {
+		return filterJson
+	}
+	return "${ " + trimmed + " }"
 }

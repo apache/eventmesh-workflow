@@ -53,15 +53,18 @@ func New(instance *model.WorkflowTaskInstance) Task {
 	if instance == nil || instance.Task == nil {
 		return nil
 	}
+	if isLocalRuntimeTask(instance.Task.TaskType) {
+		return NewLocalRuntimeTask(instance)
+	}
 	switch instance.Task.TaskType {
 	case constants.TaskTypeOperation:
 		return NewOperationTask(instance)
-	case constants.TaskTypeEvent:
+	case constants.TaskTypeEvent, constants.TaskTypeListen:
 		return NewEventTask(instance)
 	case constants.TaskTypeSwitch:
 		return NewSwitchTask(instance)
 	}
-	return nil
+	return NewOperationTask(instance)
 }
 
 func publishEvent(workflowInstanceID string, taskInstanceID string, operationID string, content string) error {

@@ -16,15 +16,31 @@
 package filter
 
 import (
+	"encoding/json"
+	"testing"
+
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/dal/model"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestFilterWorkflowTaskInputData(t *testing.T) {
 	task := mockWorkflowInstance()
 	FilterWorkflowTaskInputData(task)
-	assert.Equal(t, task.Input, `{ "order_no": "123456789"}`)
+	assert.JSONEq(t, `{ "order_no": "123456789"}`, task.Input)
+}
+
+func TestFilterWorkflowTaskInputDataWithV1RuntimeExpression(t *testing.T) {
+	task := mockWorkflowInstance()
+	task.Task.TaskInputFilter = `{order_no: .order_no}`
+	FilterWorkflowTaskInputData(task)
+	assert.JSONEq(t, `{ "order_no": "123456789"}`, task.Input)
+}
+
+func TestFilterWorkflowTaskInputDataKeepsValidJSON(t *testing.T) {
+	task := mockWorkflowInstance()
+	FilterWorkflowTaskInputData(task)
+	var jsonObj map[string]interface{}
+	assert.NoError(t, json.Unmarshal([]byte(task.Input), &jsonObj))
 }
 
 func mockWorkflowInstance() *model.WorkflowTaskInstance {

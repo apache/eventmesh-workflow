@@ -22,13 +22,11 @@ import (
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/util"
 	"time"
 
-	"github.com/apache/incubator-eventmesh/eventmesh-server-go/log"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/constants"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/dal/model"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/third_party/swf"
 	"github.com/gogf/gf/util/gconv"
 	"github.com/google/uuid"
-	pmodel "github.com/serverlessworkflow/sdk-go/v2/model"
 	"gorm.io/gorm"
 )
 
@@ -310,95 +308,87 @@ func (w *workflowDALImpl) create(ctx context.Context, tx *gorm.DB, record *model
 	return util.GoAndWait(handlers...)
 }
 
-func (w *workflowDALImpl) buildTask(workflow *pmodel.Workflow) []*model.WorkflowTask {
-	if workflow == nil || len(workflow.States) == 0 {
+func (w *workflowDALImpl) buildTask(workflow *swf.Workflow) []*model.WorkflowTask {
+	if workflow == nil || len(workflow.Tasks) == 0 {
 		return nil
 	}
 	var tasks []*model.WorkflowTask
-
-	for _, state := range workflow.States {
+	for _, workflowTask := range workflow.FlattenTasks() {
 		var task = model.WorkflowTask{}
 		task.WorkflowID = workflow.ID
 		task.TaskID = uuid.New().String()
-		task.TaskName = state.GetName()
+		task.TaskName = workflowTask.Name
 		task.Status = constants.NormalStatus
-		task.TaskType = gconv.String(state.GetType())
+		task.TaskType = normalizeTaskType(workflowTask.Type)
+		task.TaskInputFilter = workflowTask.InputFilter
+		task.TaskDefinition = workflowTask.Raw
 		task.CreateTime = time.Now()
 		task.UpdateTime = time.Now()
-		task.Actions = w.buildTaskAction(task.TaskID, workflow, state)
-		w.fillTaskFilterIfExist(state, &task)
+		task.Actions = w.buildTaskAction(task.TaskID, workflow.ID, workflowTask)
 		tasks = append(tasks, &task)
 	}
 	return tasks
 }
 
-func (w *workflowDALImpl) fillTaskFilterIfExist(workflowState pmodel.State, task *model.WorkflowTask) {
-	filter := workflowState.GetStateDataFilter()
-	if filter != nil {
-		task.TaskInputFilter = filter.Input
+func normalizeTaskType(taskType string) string {
+	switch taskType {
+	case swf.TaskTypeOperation:
+		return constants.TaskTypeOperation
+	case swf.TaskTypeEvent:
+		return constants.TaskTypeEvent
+	case swf.TaskTypeSwitch:
+		return constants.TaskTypeSwitch
+	case swf.TaskTypeSet:
+		return constants.TaskTypeSet
+	case swf.TaskTypeDo:
+		return constants.TaskTypeDo
+	case swf.TaskTypeFork:
+		return constants.TaskTypeFork
+	case swf.TaskTypeFor:
+		return constants.TaskTypeFor
+	case swf.TaskTypeTry:
+		return constants.TaskTypeTry
+	case swf.TaskTypeWait:
+		return constants.TaskTypeWait
+	case swf.TaskTypeRaise:
+		return constants.TaskTypeRaise
+	case swf.TaskTypeRun:
+		return constants.TaskTypeRun
+	case swf.TaskTypeEmit:
+		return constants.TaskTypeEmit
+	case swf.TaskTypeListen:
+		return constants.TaskTypeListen
+	default:
+		return constants.TaskTypeOperation
 	}
 }
 
-func (w *workflowDALImpl) buildTaskAction(taskID string, workflow *pmodel.Workflow,
-	state pmodel.State) []*model.WorkflowTaskAction {
-	var functions = make(map[string]*pmodel.Function)
-	for i, function := range workflow.Functions {
-		functions[function.Name] = &workflow.Functions[i]
-	}
-	switch state.GetType() {
-	case pmodel.StateTypeOperation:
-		return w.doBuildOperationTaskAction(workflow.ID, taskID, functions, state)
-	case pmodel.StateTypeEvent:
-		return w.doBuildEventTaskAction(workflow.ID, taskID, functions, state)
-	}
-	return nil
-}
-
-func (w *workflowDALImpl) buildTaskRelation(workflow *pmodel.Workflow,
-	tasks []*model.WorkflowTask) []*model.WorkflowTaskRelation {
-	if workflow == nil || len(workflow.States) == 0 {
-		return nil
-	}
-	var taskIDs = make(map[string]string)
-	for _, task := range tasks {
-		taskIDs[task.TaskName] = task.TaskID
-	}
-	var taskRelations []*model.WorkflowTaskRelation
-	for _, state := range workflow.States {
-		if workflow.Start.StateName == state.GetName() {
-			taskRelations = append(taskRelations, w.doBuildStartTaskRelation(workflow, state, taskIDs))
-		}
-		switch state.GetType() {
-		case pmodel.StateTypeOperation:
-			fallthrough
-		case pmodel.StateTypeEvent:
-			taskRelations = append(taskRelations, w.doBuildTaskRelation(workflow, state, taskIDs))
-		case pmodel.StateTypeSwitch:
-			taskRelations = append(taskRelations, w.doBuildSwitchTaskRelation(workflow, state, taskIDs)...)
-		default:
-			log.Errorf("buildTaskRelation=not support type=%s", state.GetType())
-		}
-	}
-	return taskRelations
-}
-
-func (w *workflowDALImpl) doBuildOperationTaskAction(workflowID string, taskID string,
-	functions map[string]*pmodel.Function, state pmodel.State) []*model.WorkflowTaskAction {
-	s, ok := state.(*pmodel.OperationState)
-	if !ok {
+func (w *workflowDALImpl) buildTaskAction(taskID string, workflowID string,
+	workflowTask *swf.Task) []*model.WorkflowTaskAction {
+	if workflowTask == nil {
 		return nil
 	}
 	var actions []*model.WorkflowTaskAction
-	for _, action := range s.Actions {
+	for _, action := range workflowTask.Actions {
+		if action == nil {
+			continue
+		}
 		var taskAction model.WorkflowTaskAction
 		taskAction.WorkflowID = workflowID
 		taskAction.TaskID = taskID
-		function := functions[action.FunctionRef.RefName]
-		if function == nil {
-			continue
-		}
-		taskAction.OperationName = gconv.String(function.Operation)
-		taskAction.OperationType = gconv.String(function.Type)
+		taskAction.OperationName = action.OperationName
+		taskAction.OperationType = action.OperationType
+		taskAction.Status = constants.NormalStatus
+		taskAction.CreateTime = time.Now()
+		taskAction.UpdateTime = time.Now()
+		actions = append(actions, &taskAction)
+	}
+	if len(actions) == 0 {
+		var taskAction model.WorkflowTaskAction
+		taskAction.WorkflowID = workflowID
+		taskAction.TaskID = taskID
+		taskAction.OperationName = workflowTask.Name
+		taskAction.OperationType = normalizeTaskType(workflowTask.Type)
 		taskAction.Status = constants.NormalStatus
 		taskAction.CreateTime = time.Now()
 		taskAction.UpdateTime = time.Now()
@@ -407,92 +397,82 @@ func (w *workflowDALImpl) doBuildOperationTaskAction(workflowID string, taskID s
 	return actions
 }
 
-func (w *workflowDALImpl) doBuildEventTaskAction(workflowID string, taskID string,
-	functions map[string]*pmodel.Function, state pmodel.State) []*model.WorkflowTaskAction {
-	s, ok := state.(*pmodel.EventState)
-	if !ok {
+func (w *workflowDALImpl) buildTaskRelation(workflow *swf.Workflow,
+	tasks []*model.WorkflowTask) []*model.WorkflowTaskRelation {
+	if workflow == nil || len(workflow.Tasks) == 0 {
 		return nil
 	}
-	var actions []*model.WorkflowTaskAction
-	for _, event := range s.OnEvents {
-		for _, action := range event.Actions {
-			var taskAction model.WorkflowTaskAction
-			taskAction.WorkflowID = workflowID
-			taskAction.TaskID = taskID
-			function := functions[action.FunctionRef.RefName]
-			if function == nil {
-				continue
-			}
-			taskAction.OperationName = gconv.String(function.Operation)
-			taskAction.OperationType = gconv.String(function.Type)
-			taskAction.Status = constants.NormalStatus
-			taskAction.CreateTime = time.Now()
-			taskAction.UpdateTime = time.Now()
-			actions = append(actions, &taskAction)
+	var taskIDs = make(map[string]string)
+	for _, task := range tasks {
+		taskIDs[task.TaskName] = task.TaskID
+	}
+	var taskRelations []*model.WorkflowTaskRelation
+	if startTaskID := taskIDs[workflow.Start]; startTaskID != "" {
+		taskRelations = append(taskRelations, newTaskRelation(workflow.ID, constants.TaskStartID, startTaskID, ""))
+	}
+	for _, workflowTask := range workflow.FlattenTasks() {
+		fromTaskID := taskIDs[workflowTask.Name]
+		if fromTaskID == "" {
+			continue
 		}
+		if workflowTask.Type == swf.TaskTypeSwitch {
+			taskRelations = append(taskRelations, w.buildSwitchTaskRelation(workflow.ID, workflowTask, fromTaskID, taskIDs)...)
+			continue
+		}
+		nextTaskID := w.resolveNextTaskID(workflowTask, taskIDs)
+		taskRelations = append(taskRelations, newTaskRelation(workflow.ID, fromTaskID, nextTaskID, ""))
 	}
-	return actions
+	return taskRelations
 }
 
-func (w *workflowDALImpl) doBuildTaskRelation(workflow *pmodel.Workflow, state pmodel.State,
-	taskIDs map[string]string) *model.WorkflowTaskRelation {
-	var r = model.WorkflowTaskRelation{}
-	r.WorkflowID = workflow.ID
-	r.FromTaskID = taskIDs[state.GetName()]
-	if state.GetTransition() == nil && !state.GetEnd().Terminate {
-		r.ToTaskID = constants.TaskEndID
-	} else {
-		r.ToTaskID = taskIDs[state.GetTransition().NextState]
-	}
-	r.Status = constants.NormalStatus
-	r.CreateTime = time.Now()
-	r.UpdateTime = time.Now()
-	return &r
-}
-
-func (w *workflowDALImpl) doBuildSwitchTaskRelation(workflow *pmodel.Workflow, state pmodel.State,
-	taskIDs map[string]string) []*model.WorkflowTaskRelation {
-	s, ok := state.(*pmodel.DataBasedSwitchState)
-	if !ok {
-		return nil
-	}
+func (w *workflowDALImpl) buildSwitchTaskRelation(workflowID string, workflowTask *swf.Task,
+	fromTaskID string, taskIDs map[string]string) []*model.WorkflowTaskRelation {
 	var rel []*model.WorkflowTaskRelation
-	if !s.DefaultCondition.End.Terminate {
-		var r = model.WorkflowTaskRelation{}
-		r.WorkflowID = workflow.ID
-		r.FromTaskID = taskIDs[state.GetName()]
-		r.ToTaskID = constants.TaskEndID
-		r.Status = constants.NormalStatus
-		r.CreateTime = time.Now()
-		r.UpdateTime = time.Now()
-		rel = append(rel, &r)
+	for _, item := range workflowTask.Cases {
+		if item == nil {
+			continue
+		}
+		toTaskID := resolveFlowDirective(item.Then, taskIDs)
+		rel = append(rel, newTaskRelation(workflowID, fromTaskID, toTaskID, item.Condition))
 	}
-	for _, condition := range s.DataConditions {
-		var r = model.WorkflowTaskRelation{}
-		r.WorkflowID = workflow.ID
-		r.FromTaskID = taskIDs[state.GetName()]
-		r.Status = constants.NormalStatus
-		r.CreateTime = time.Now()
-		r.UpdateTime = time.Now()
-		if c, ok := condition.(*pmodel.TransitionDataCondition); ok {
-			r.ToTaskID = taskIDs[c.Transition.NextState]
-			r.Condition = c.Condition
-		}
-		if c, ok := condition.(*pmodel.EndDataCondition); ok {
-			r.ToTaskID = constants.TaskEndID
-			r.Condition = c.Condition
-		}
-		rel = append(rel, &r)
+	if len(rel) == 0 {
+		rel = append(rel, newTaskRelation(workflowID, fromTaskID, constants.TaskEndID, ""))
 	}
 	return rel
 }
 
-func (w *workflowDALImpl) doBuildStartTaskRelation(workflow *pmodel.Workflow, state pmodel.State,
-	taskIDs map[string]string) *model.WorkflowTaskRelation {
+func (w *workflowDALImpl) resolveNextTaskID(workflowTask *swf.Task, taskIDs map[string]string) string {
+	if workflowTask == nil {
+		return constants.TaskEndID
+	}
+	if workflowTask.ExplicitThen {
+		return resolveFlowDirective(workflowTask.Then, taskIDs)
+	}
+	if len(workflowTask.Children) > 0 {
+		return resolveFlowDirective(workflowTask.Children[0].Name, taskIDs)
+	}
+	return constants.TaskEndID
+}
+
+func resolveFlowDirective(next string, taskIDs map[string]string) string {
+	switch next {
+	case "", "end", "exit":
+		return constants.TaskEndID
+	case "continue":
+		return constants.TaskEndID
+	}
+	if taskID := taskIDs[next]; taskID != "" {
+		return taskID
+	}
+	return constants.TaskEndID
+}
+
+func newTaskRelation(workflowID string, fromTaskID string, toTaskID string, condition string) *model.WorkflowTaskRelation {
 	var r = model.WorkflowTaskRelation{}
-	r.WorkflowID = workflow.ID
-	r.FromTaskID = constants.TaskStartID
-	r.ToTaskID = taskIDs[state.GetName()]
+	r.WorkflowID = workflowID
+	r.FromTaskID = fromTaskID
+	r.ToTaskID = toTaskID
+	r.Condition = condition
 	r.Status = constants.NormalStatus
 	r.CreateTime = time.Now()
 	r.UpdateTime = time.Now()

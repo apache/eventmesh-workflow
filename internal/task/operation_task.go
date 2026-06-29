@@ -16,7 +16,6 @@
 package task
 
 import (
-	"context"
 	"github.com/apache/incubator-eventmesh/eventmesh-server-go/config"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/constants"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/dal"
@@ -39,8 +38,12 @@ func NewOperationTask(instance *model.WorkflowTaskInstance) Task {
 	}
 	t.baseTask = baseTask{taskID: instance.TaskID, taskInstanceID: instance.TaskInstanceID, input: instance.Input,
 		workflowID: instance.WorkflowID, workflowInstanceID: instance.WorkflowInstanceID, taskType: instance.Task.TaskType}
-	t.action = instance.Task.Actions[0]
-	t.transition = instance.Task.ChildTasks[0]
+	if len(instance.Task.Actions) > 0 {
+		t.action = instance.Task.Actions[0]
+	}
+	if len(instance.Task.ChildTasks) > 0 {
+		t.transition = instance.Task.ChildTasks[0]
+	}
 	t.baseTask.queue = queue.GetQueue(config.GlobalConfig().Flow.Queue.Store)
 	t.workflowDAL = dal.NewWorkflowDAL()
 	return &t
@@ -48,19 +51,11 @@ func NewOperationTask(instance *model.WorkflowTaskInstance) Task {
 
 func (t *operationTask) Run() error {
 	metrics.Inc(constants.MetricsOperationTask, constants.MetricsTotal)
-	if t.action == nil {
-		return nil
-	}
-	// match end
-	if t.transition.ToTaskID == constants.TaskEndID {
-		if t.action != nil {
-			if err := publishEvent(t.workflowInstanceID, uuid.New().String(), t.action.OperationName, t.input); err != nil {
-				return err
-			}
+	if t.transition == nil || t.transition.ToTaskID == constants.TaskEndID {
+		if err := t.runAction(uuid.New().String()); err != nil {
+			return err
 		}
-		return t.workflowDAL.UpdateInstance(context.Background(),
-			&model.WorkflowInstance{WorkflowInstanceID: t.workflowInstanceID,
-				WorkflowStatus: constants.WorkflowInstanceSuccessStatus})
+		return publishNextOrComplete(t.baseTask, t.transition, t.input)
 	}
 	var taskInstanceID = uuid.New().String()
 	var taskInstance = model.WorkflowTaskInstance{WorkflowInstanceID: t.workflowInstanceID, WorkflowID: t.workflowID,
@@ -69,5 +64,13 @@ func (t *operationTask) Run() error {
 	if err := t.baseTask.queue.Publish([]*model.WorkflowTaskInstance{&taskInstance}); err != nil {
 		return err
 	}
-	return publishEvent(t.workflowInstanceID, taskInstanceID, t.action.OperationName, t.input)
+	return t.runAction(taskInstanceID)
 }
+
+func (t *operationTask) runAction(nextTaskInstanceID string) error {
+	if t.action == nil || t.action.OperationName == "" || isLocalRuntimeTask(t.action.OperationType) {
+		return nil
+	}
+	return publishEvent(t.workflowInstanceID, nextTaskInstanceID, t.action.OperationName, t.input)
+}
+
