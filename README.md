@@ -2,12 +2,12 @@
 
 Apache EventMesh workflow runtime — Serverless Workflow DSL `1.0.3` compatible.
 
-## Documentation
+## Documentation / 文档
 
-| Document | Description |
-| --- | --- |
-| [docs/DESIGN.md](docs/DESIGN.md) | Architecture design, components, data model, task executors, A2A bridge |
-| [docs/USAGE.md](docs/USAGE.md) | Quick start, DSL writing guide, 12 task types, REST API, complete examples |
+| English | 中文 | Description / 说明 |
+| --- | --- | --- |
+| [DESIGN.md](docs/DESIGN.md) | [DESIGN_CN.md](docs/DESIGN_CN.md) | Architecture design, components, data model, task executors, A2A bridge |
+| [USAGE.md](docs/USAGE.md) | [USAGE_CN.md](docs/USAGE_CN.md) | Quick start, DSL writing guide, 12 task types, REST API, complete examples |
 
 ## Key Features
 
