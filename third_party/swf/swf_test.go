@@ -92,3 +92,53 @@ func TestValidateSetTaskTypeRaw(t *testing.T) {
 	assert.Equal(t, 1, len(wf.Tasks))
 	assert.NotEmpty(t, wf.Tasks[0].Raw)
 }
+
+func TestParseForkBranches(t *testing.T) {
+	source := "document:\n  dsl: '1.0.3'\n  name: fork-test\n  version: '1.0.0'\ndo:\n  - split:\n      fork:\n        branches:\n          - branchA:\n              set:\n                a: 1\n              then: end\n          - branchB:\n              set:\n                b: 2\n              then: end\n      then: join\n  - join:\n      set:\n        done: true\n      then: end\n"
+	wf, err := Parse(source)
+	assert.Nil(t, err)
+	assert.Equal(t, TaskTypeFork, wf.Tasks[0].Type)
+	assert.Equal(t, 2, len(wf.Tasks[0].Children))
+	assert.Equal(t, "branchA", wf.Tasks[0].Children[0].Name)
+	assert.Equal(t, "branchB", wf.Tasks[0].Children[1].Name)
+	assert.Equal(t, TaskTypeSet, wf.Tasks[0].Children[0].Type)
+}
+
+func TestParseTry(t *testing.T) {
+	source := "document:\n  dsl: '1.0.3'\n  name: try-test\n  version: '1.0.0'\ndo:\n  - risky:\n      try:\n        - attempt:\n            set:\n              success: true\n      catch:\n        errors:\n          with:\n            type: '*'\n        when:\n          - recover:\n              set:\n                recovered: true\n      then: end\n"
+	wf, err := Parse(source)
+	assert.Nil(t, err)
+	assert.Equal(t, TaskTypeTry, wf.Tasks[0].Type)
+	assert.Equal(t, "attempt", wf.Tasks[0].Children[0].Name)
+	assert.Equal(t, "recover", wf.Tasks[0].Children[1].Name)
+	assert.Equal(t, TaskTypeSet, wf.Tasks[0].Children[1].Type)
+}
+
+func TestParseFor(t *testing.T) {
+	source := "document:\n  dsl: '1.0.3'\n  name: for-test\n  version: '1.0.0'\ndo:\n  - loop:\n      for:\n        each: .items\n        do:\n          - process:\n              set:\n                id: 1\n      then: end\n"
+	wf, err := Parse(source)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(wf.FlattenTasks()))
+	assert.Equal(t, TaskTypeFor, wf.Tasks[0].Type)
+	assert.Equal(t, 1, len(wf.Tasks[0].Children))
+	assert.Equal(t, "process", wf.Tasks[0].Children[0].Name)
+}
+
+func TestParseScheduleAndOutput(t *testing.T) {
+	source := "document:\n  dsl: '1.0.3'\n  name: scheduled-workflow\n  version: '1.0.0'\nschedule:\n  start: '2026-01-01T00:00:00Z'\n  cron: '0 */6 * * *'\ninput:\n  from: .payload\ndo:\n  - task1:\n      set:\n        x: 1\n      then: end\noutput:\n  as: .result\n"
+	wf, err := Parse(source)
+	assert.Nil(t, err)
+	assert.NotNil(t, wf.Schedule)
+	assert.Equal(t, "2026-01-01T00:00:00Z", wf.Schedule.Start)
+	assert.Equal(t, "0 */6 * * *", wf.Schedule.Cron)
+	assert.Equal(t, ".payload", wf.Input)
+	assert.Equal(t, ".result", wf.Output)
+}
+
+func TestParseTaskDataAndOutput(t *testing.T) {
+	source := "document:\n  dsl: '1.0.3'\n  name: task-fields\n  version: '1.0.0'\ndo:\n  - step1:\n      data: '[\"a\",\"b\"]'\n      set:\n        items: .\n      then: next\n  - next:\n      set:\n        done: true\n      output:\n        as: .result\n      then: end\n"
+	wf, err := Parse(source)
+	assert.Nil(t, err)
+	assert.Equal(t, "[\"a\",\"b\"]", wf.Tasks[0].InlineData)
+	assert.Equal(t, ".result", wf.Tasks[1].OutputFilter)
+}

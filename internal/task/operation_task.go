@@ -36,8 +36,7 @@ func NewOperationTask(instance *model.WorkflowTaskInstance) Task {
 	if instance == nil || instance.Task == nil {
 		return nil
 	}
-	t.baseTask = baseTask{taskID: instance.TaskID, taskInstanceID: instance.TaskInstanceID, input: instance.Input,
-		workflowID: instance.WorkflowID, workflowInstanceID: instance.WorkflowInstanceID, taskType: instance.Task.TaskType}
+	t.baseTask = newBaseTask(instance)
 	if len(instance.Task.Actions) > 0 {
 		t.action = instance.Task.Actions[0]
 	}
@@ -71,6 +70,20 @@ func (t *operationTask) runAction(nextTaskInstanceID string) error {
 	if t.action == nil || t.action.OperationName == "" || isLocalRuntimeTask(t.action.OperationType) {
 		return nil
 	}
+	if isA2ATask(t.action) {
+		return t.runA2AAction()
+	}
 	return publishEvent(t.workflowInstanceID, nextTaskInstanceID, t.action.OperationName, t.input)
 }
 
+func (t *operationTask) runA2AAction() error {
+	executor := newA2AExecutorFromAction(t.action)
+	output, err := executor.ExecuteFromAction(t.action, t.input)
+	if err != nil {
+		return err
+	}
+	if output != "" {
+		t.input = output
+	}
+	return nil
+}

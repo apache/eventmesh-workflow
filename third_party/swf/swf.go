@@ -81,6 +81,9 @@ func parseV1Workflow(raw map[string]interface{}) (*Workflow, error) {
 		Start:     tasks[0].Name,
 		Tasks:     tasks,
 		Functions: parseReusableFunctions(raw),
+		Schedule:  parseSchedule(raw["schedule"]),
+		Input:     parseWorkflowInput(raw["input"]),
+		Output:    expressionString(asMap(raw["output"])["as"]),
 		Legacy:    false,
 	}, nil
 }
@@ -136,6 +139,26 @@ func parseLegacyWorkflow(raw map[string]interface{}) (*Workflow, error) {
 	}, nil
 }
 
+func parseSchedule(value interface{}) *Schedule {
+	scheduleMap := asMap(value)
+	if len(scheduleMap) == 0 {
+		return nil
+	}
+	return &Schedule{
+		Start: asString(scheduleMap["start"]),
+		Cron:  asString(scheduleMap["cron"]),
+		After: asString(scheduleMap["after"]),
+	}
+}
+
+func parseWorkflowInput(value interface{}) string {
+	inputMap := asMap(value)
+	if len(inputMap) == 0 {
+		return ""
+	}
+	return expressionString(inputMap["from"])
+}
+
 func parseV1TaskList(value interface{}) ([]*Task, error) {
 	items := asSlice(value)
 	if len(items) == 0 {
@@ -162,6 +185,12 @@ func parseV1Task(taskName string, def map[string]interface{}) (*Task, error) {
 	task := &Task{Name: taskName, Type: detectV1TaskType(def), Raw: mustJSON(def)}
 	if input := asMap(def["input"]); len(input) > 0 {
 		task.InputFilter = expressionString(input["from"])
+	}
+	if data := asString(def["data"]); data != "" {
+		task.InlineData = data
+	}
+	if output := asMap(def["output"]); len(output) > 0 {
+		task.OutputFilter = expressionString(output["as"])
 	}
 	if _, ok := def["then"]; ok {
 		task.Then = expressionString(def["then"])
@@ -196,6 +225,14 @@ func parseV1Task(taskName string, def map[string]interface{}) (*Task, error) {
 			return nil, err
 		}
 		task.Children = children
+		if catchMap := asMap(def["catch"]); len(catchMap) > 0 {
+			if when := catchMap["when"]; when != nil {
+				catchTasks, err := parseV1TaskList(when)
+				if err == nil {
+					task.Children = append(task.Children, catchTasks...)
+				}
+			}
+		}
 	case TaskTypeEmit, TaskTypeListen, TaskTypeWait, TaskTypeRaise, TaskTypeRun:
 		task.Actions = []*Action{{OperationName: taskName, OperationType: task.Type}}
 	}

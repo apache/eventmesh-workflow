@@ -59,6 +59,44 @@ func publishNextOrComplete(base baseTask, transition *model.WorkflowTaskRelation
 	return observeQueue.Publish([]*model.WorkflowTaskInstance{&taskInstance})
 }
 
+func publishNextTasks(base baseTask, relations []*model.WorkflowTaskRelation, input string) error {
+	if len(relations) == 0 {
+		return publishNextOrComplete(base, nil, input)
+	}
+	observeQueue := base.queue
+	if observeQueue == nil {
+		observeQueue = queue.GetQueue(config.GlobalConfig().Flow.Queue.Store)
+	}
+	var instances []*model.WorkflowTaskInstance
+	for _, rel := range relations {
+		if rel == nil || rel.ToTaskID == constants.TaskEndID {
+			continue
+		}
+		instances = append(instances, &model.WorkflowTaskInstance{
+			WorkflowInstanceID: base.workflowInstanceID,
+			WorkflowID:         base.workflowID,
+			TaskID:             rel.ToTaskID,
+			TaskInstanceID:     uuid.New().String(),
+			Status:             constants.TaskInstanceWaitStatus,
+			Input:              input,
+		})
+	}
+	if len(instances) == 0 {
+		return publishNextOrComplete(base, nil, input)
+	}
+	return observeQueue.Publish(instances)
+}
+
+func completeWorkflow(base baseTask) error {
+	workflowDAL := base.workflowDAL
+	if workflowDAL == nil {
+		workflowDAL = dal.NewWorkflowDAL()
+	}
+	return workflowDAL.UpdateInstance(context.Background(),
+		&model.WorkflowInstance{WorkflowInstanceID: base.workflowInstanceID,
+			WorkflowStatus: constants.WorkflowInstanceSuccessStatus})
+}
+
 func asMap(value interface{}) map[string]interface{} {
 	if value == nil {
 		return nil
@@ -90,4 +128,14 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func asSlice(value interface{}) []interface{} {
+	if value == nil {
+		return nil
+	}
+	if items, ok := value.([]interface{}); ok {
+		return items
+	}
+	return nil
 }

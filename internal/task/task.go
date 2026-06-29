@@ -45,6 +45,7 @@ type baseTask struct {
 	workflowInstanceID string
 	input              string
 	taskType           string
+	outputFilter       string
 	queue              queue.ObserveQueue
 	workflowDAL        dal.WorkflowDAL
 }
@@ -65,6 +66,18 @@ func New(instance *model.WorkflowTaskInstance) Task {
 		return NewSwitchTask(instance)
 	}
 	return NewOperationTask(instance)
+}
+
+func newBaseTask(instance *model.WorkflowTaskInstance) baseTask {
+	return baseTask{
+		taskID:             instance.TaskID,
+		taskInstanceID:     instance.TaskInstanceID,
+		input:              instance.Input,
+		workflowID:         instance.WorkflowID,
+		workflowInstanceID: instance.WorkflowInstanceID,
+		taskType:           instance.Task.TaskType,
+		outputFilter:       instance.Task.TaskOutputFilter,
+	}
 }
 
 func publishEvent(workflowInstanceID string, taskInstanceID string, operationID string, content string) error {

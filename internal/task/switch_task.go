@@ -42,9 +42,7 @@ func NewSwitchTask(instance *model.WorkflowTaskInstance) Task {
 	if instance == nil || instance.Task == nil {
 		return nil
 	}
-	t.baseTask = baseTask{taskID: instance.TaskID, input: instance.Input,
-		workflowID: instance.WorkflowID, workflowInstanceID: instance.WorkflowInstanceID,
-		taskType: instance.Task.TaskType}
+	t.baseTask = newBaseTask(instance)
 	t.transitions = instance.Task.ChildTasks
 	t.baseTask.queue = queue.GetQueue(config.GlobalConfig().Flow.Queue.Store)
 	t.workflowDAL = dal.NewWorkflowDAL()

@@ -321,6 +321,7 @@ func (w *workflowDALImpl) buildTask(workflow *swf.Workflow) []*model.WorkflowTas
 		task.Status = constants.NormalStatus
 		task.TaskType = normalizeTaskType(workflowTask.Type)
 		task.TaskInputFilter = workflowTask.InputFilter
+		task.TaskOutputFilter = workflowTask.OutputFilter
 		task.TaskDefinition = workflowTask.Raw
 		task.CreateTime = time.Now()
 		task.UpdateTime = time.Now()
@@ -419,10 +420,33 @@ func (w *workflowDALImpl) buildTaskRelation(workflow *swf.Workflow,
 			taskRelations = append(taskRelations, w.buildSwitchTaskRelation(workflow.ID, workflowTask, fromTaskID, taskIDs)...)
 			continue
 		}
+		if workflowTask.Type == swf.TaskTypeFork {
+			taskRelations = append(taskRelations, w.buildForkTaskRelation(workflow.ID, workflowTask, fromTaskID, taskIDs)...)
+			continue
+		}
 		nextTaskID := w.resolveNextTaskID(workflowTask, taskIDs)
 		taskRelations = append(taskRelations, newTaskRelation(workflow.ID, fromTaskID, nextTaskID, ""))
 	}
 	return taskRelations
+}
+
+func (w *workflowDALImpl) buildForkTaskRelation(workflowID string, workflowTask *swf.Task,
+	fromTaskID string, taskIDs map[string]string) []*model.WorkflowTaskRelation {
+	var rel []*model.WorkflowTaskRelation
+	for _, child := range workflowTask.Children {
+		if child == nil {
+			continue
+		}
+		branchStartID := taskIDs[child.Name]
+		if branchStartID == "" {
+			branchStartID = constants.TaskEndID
+		}
+		rel = append(rel, newTaskRelation(workflowID, fromTaskID, branchStartID, ""))
+	}
+	if len(rel) == 0 {
+		rel = append(rel, newTaskRelation(workflowID, fromTaskID, constants.TaskEndID, ""))
+	}
+	return rel
 }
 
 func (w *workflowDALImpl) buildSwitchTaskRelation(workflowID string, workflowTask *swf.Task,

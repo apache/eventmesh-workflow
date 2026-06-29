@@ -36,6 +36,18 @@ func FilterWorkflowTaskInputData(task *model.WorkflowTaskInstance) {
 	task.Input = inputAfterFilter
 }
 
+func FilterWorkflowTaskOutputData(input string, outputFilter string) string {
+	if outputFilter == "" || input == "" {
+		return input
+	}
+	outputAfterFilter, err := filterJsonData(outputFilter, input)
+	if err != nil {
+		log.Errorf("fail to filter task output data filter=%s, err=%v", outputFilter, err)
+		return input
+	}
+	return outputAfterFilter
+}
+
 func filterJsonData(filterJson string, inputDataJson string) (string, error) {
 	var jsonObj interface{}
 	err := json.Unmarshal([]byte(inputDataJson), &jsonObj)

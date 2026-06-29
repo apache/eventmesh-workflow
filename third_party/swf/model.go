@@ -38,6 +38,12 @@ const (
 	TaskTypeListen    = "listen"
 )
 
+type Schedule struct {
+	Start string
+	Cron  string
+	After string
+}
+
 type Workflow struct {
 	ID        string
 	Name      string
@@ -47,6 +53,9 @@ type Workflow struct {
 	Start     string
 	Tasks     []*Task
 	Functions map[string]*Function
+	Schedule  *Schedule
+	Input     string
+	Output    string
 	Legacy    bool
 }
 
@@ -60,6 +69,8 @@ type Task struct {
 	Name         string
 	Type         string
 	InputFilter  string
+	OutputFilter string
+	InlineData   string
 	Then         string
 	ExplicitThen bool
 	Actions      []*Action

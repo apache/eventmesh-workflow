@@ -67,6 +67,7 @@ const (
 	TaskTypeRun       = "run"
 	TaskTypeEmit      = "emit"
 	TaskTypeListen    = "listen"
+	TaskTypeCall      = "call"
 )
 
 const (
