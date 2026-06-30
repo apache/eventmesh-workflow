@@ -54,7 +54,7 @@ func (q *inMemoryQueue) Publish(tasks []*model.WorkflowTaskInstance) error {
 	if len(tasks) == 0 {
 		return nil
 	}
-	metrics.Add(constants.MetricsTaskQueue, fmt.Sprintf("%s_%s", q.Name(), constants.MetricsQueueSize),
+	_ = metrics.Add(constants.MetricsTaskQueue, fmt.Sprintf("%s_%s", q.Name(), constants.MetricsQueueSize),
 		float64(len(tasks)))
 	for _, t := range tasks {
 		q.ch <- rxgo.Of(t)
@@ -74,7 +74,7 @@ func (q *inMemoryQueue) Observe() {
 			}
 		}()
 		for item := range q.observable.Observe() {
-			metrics.Dec(constants.MetricsTaskQueue, fmt.Sprintf("%s_%s", q.Name(), constants.MetricsQueueSize))
+			_ = metrics.Dec(constants.MetricsTaskQueue, fmt.Sprintf("%s_%s", q.Name(), constants.MetricsQueueSize))
 			q.handle(item)
 		}
 	}()

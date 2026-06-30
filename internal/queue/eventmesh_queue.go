@@ -106,7 +106,7 @@ func (q *eventMeshQueue) Publish(tasks []*model.WorkflowTaskInstance) error {
 			log.Get(constants.LogQueue).Errorf("EventMesh task queue, fail to publish task, error=%v", err)
 			return err
 		}
-		metrics.Inc(constants.MetricsTaskQueue, fmt.Sprintf("%s_%s", q.Name(), constants.MetricsQueueSize))
+		_ = metrics.Inc(constants.MetricsTaskQueue, fmt.Sprintf("%s_%s", q.Name(), constants.MetricsQueueSize))
 	}
 	return nil
 }
@@ -130,7 +130,7 @@ func (q *eventMeshQueue) Observe() {
 }
 
 func (q *eventMeshQueue) handler(message *sdk_pb.SimpleMessage) interface{} {
-	metrics.Dec(constants.MetricsTaskQueue, fmt.Sprintf("%s_%s", q.Name(), constants.MetricsQueueSize))
+	_ = metrics.Dec(constants.MetricsTaskQueue, fmt.Sprintf("%s_%s", q.Name(), constants.MetricsQueueSize))
 	workflowTask, err := q.toWorkflowTask(message)
 	if err != nil {
 		return err

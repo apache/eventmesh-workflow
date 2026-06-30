@@ -19,6 +19,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/apache/incubator-eventmesh/eventmesh-server-go/log"
 )
 
 // Lock denotes an acquired lock and presents two methods, one for getting the context which is cancelled when the lock
@@ -58,7 +60,9 @@ func (l Lock) refresher(duration time.Duration, cancelFunc context.CancelFunc) {
 				cancelFunc()
 				deadlineCancelFunc()
 				// this will make sure connection is closed
-				l.Release()
+				if relErr := l.Release(); relErr != nil {
+					log.Errorf("fail to release lock: %v", relErr)
+				}
 				return
 			}
 			deadlineCancelFunc() // to avoid context leak

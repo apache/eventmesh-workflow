@@ -61,7 +61,9 @@ func (wa *WorkflowAgent) handleAgentCard(w http.ResponseWriter, r *http.Request)
 	body, _ := wa.card.ToJSON()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Write(body)
+	if _, err := w.Write(body); err != nil {
+		log.Errorf("fail to write agent card response: %v", err)
+	}
 }
 
 func (wa *WorkflowAgent) handleSubmitTask(w http.ResponseWriter, r *http.Request) {
@@ -155,7 +157,9 @@ func (wa *WorkflowAgent) handleTaskStatus(w http.ResponseWriter, r *http.Request
 func (wa *WorkflowAgent) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Write([]byte(`{"status":"ok"}`))
+	if _, err := w.Write([]byte(`{"status":"ok"}`)); err != nil {
+		log.Errorf("fail to write health response: %v", err)
+	}
 }
 
 // Helper functions
@@ -181,5 +185,7 @@ func writeJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(statusCode)
 	body, _ := json.Marshal(data)
-	w.Write(body)
+	if _, err := w.Write(body); err != nil {
+		log.Errorf("fail to write JSON response: %v", err)
+	}
 }

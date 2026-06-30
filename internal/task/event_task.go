@@ -48,7 +48,7 @@ func NewEventTask(instance *model.WorkflowTaskInstance) Task {
 }
 
 func (t *eventTask) Run() error {
-	metrics.Inc(constants.MetricsEventTask, constants.MetricsTotal)
+	_ = metrics.Inc(constants.MetricsEventTask, constants.MetricsTotal)
 	if t.transition == nil {
 		return nil
 	}

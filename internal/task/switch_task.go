@@ -51,7 +51,7 @@ func NewSwitchTask(instance *model.WorkflowTaskInstance) Task {
 }
 
 func (t *switchTask) Run() error {
-	metrics.Inc(constants.MetricsSwitchTask, constants.MetricsTotal)
+	_ = metrics.Inc(constants.MetricsSwitchTask, constants.MetricsTotal)
 	if len(t.transitions) == 0 {
 		return nil
 	}
@@ -69,14 +69,14 @@ func (t *switchTask) Run() error {
 			return err
 		}
 		if !matched {
-			metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchReject)
+			_ = metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchReject)
 			continue
 		}
-		metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchPass)
+		_ = metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchPass)
 		return t.publishOrComplete(transition)
 	}
 	if defaultTransition != nil {
-		metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchPass)
+		_ = metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchPass)
 		return t.publishOrComplete(defaultTransition)
 	}
 	return t.completeWorkflow()

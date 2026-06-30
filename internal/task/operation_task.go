@@ -49,7 +49,7 @@ func NewOperationTask(instance *model.WorkflowTaskInstance) Task {
 }
 
 func (t *operationTask) Run() error {
-	metrics.Inc(constants.MetricsOperationTask, constants.MetricsTotal)
+	_ = metrics.Inc(constants.MetricsOperationTask, constants.MetricsTotal)
 	if t.transition == nil || t.transition.ToTaskID == constants.TaskEndID {
 		if err := t.runAction(uuid.New().String()); err != nil {
 			return err

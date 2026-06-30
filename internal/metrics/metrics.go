@@ -35,23 +35,29 @@ func init() {
 
 // loadAllCollectors all collectors used in workflow should register in this function first
 func loadAllCollectors() {
-	prometheusMetrics.registerNewCollector(constants.MetricsEventTask, histogram)
-	prometheusMetrics.registerNewCollector(constants.MetricsEventTask, gauge)
+	mustRegister := func(name string, collectorType int) {
+		_, err := prometheusMetrics.registerNewCollector(name, collectorType)
+		if err != nil {
+			panic(fmt.Sprintf("fail to register collector: name=%s, type=%d, err=%v", name, collectorType, err))
+		}
+	}
+	mustRegister(constants.MetricsEventTask, histogram)
+	mustRegister(constants.MetricsEventTask, gauge)
 
-	prometheusMetrics.registerNewCollector(constants.MetricsOperationTask, histogram)
-	prometheusMetrics.registerNewCollector(constants.MetricsOperationTask, gauge)
+	mustRegister(constants.MetricsOperationTask, histogram)
+	mustRegister(constants.MetricsOperationTask, gauge)
 
-	prometheusMetrics.registerNewCollector(constants.MetricsSwitchTask, histogram)
-	prometheusMetrics.registerNewCollector(constants.MetricsSwitchTask, gauge)
+	mustRegister(constants.MetricsSwitchTask, histogram)
+	mustRegister(constants.MetricsSwitchTask, gauge)
 
-	prometheusMetrics.registerNewCollector(constants.MetricsScheduler, histogram)
-	prometheusMetrics.registerNewCollector(constants.MetricsScheduler, gauge)
+	mustRegister(constants.MetricsScheduler, histogram)
+	mustRegister(constants.MetricsScheduler, gauge)
 
-	prometheusMetrics.registerNewCollector(constants.MetricsEngine, histogram)
-	prometheusMetrics.registerNewCollector(constants.MetricsEngine, gauge)
+	mustRegister(constants.MetricsEngine, histogram)
+	mustRegister(constants.MetricsEngine, gauge)
 
-	prometheusMetrics.registerNewCollector(constants.MetricsTaskQueue, histogram)
-	prometheusMetrics.registerNewCollector(constants.MetricsTaskQueue, gauge)
+	mustRegister(constants.MetricsTaskQueue, histogram)
+	mustRegister(constants.MetricsTaskQueue, gauge)
 }
 
 func Inc(name string, label string) error {
