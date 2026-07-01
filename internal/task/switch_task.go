@@ -44,7 +44,7 @@ func NewSwitchTask(instance *model.WorkflowTaskInstance) Task {
 	}
 	t.baseTask = newBaseTask(instance)
 	t.transitions = instance.Task.ChildTasks
-	t.baseTask.queue = queue.GetQueue(config.GlobalConfig().Flow.Queue.Store)
+	t.queue = queue.GetQueue(config.GlobalConfig().Flow.Queue.Store)
 	t.workflowDAL = dal.NewWorkflowDAL()
 	t.jq = jqer.NewJQ()
 	return &t
@@ -101,8 +101,8 @@ func (t *switchTask) publishOrComplete(transition *model.WorkflowTaskRelation) e
 	}
 	var taskInstance = model.WorkflowTaskInstance{WorkflowInstanceID: t.workflowInstanceID,
 		WorkflowID: t.workflowID, TaskID: transition.ToTaskID, TaskInstanceID: uuid.New().String(),
-		Status: constants.TaskInstanceWaitStatus, Input: t.baseTask.input}
-	return t.baseTask.queue.Publish([]*model.WorkflowTaskInstance{&taskInstance})
+		Status: constants.TaskInstanceWaitStatus, Input: t.input}
+	return t.queue.Publish([]*model.WorkflowTaskInstance{&taskInstance})
 }
 
 func (t *switchTask) completeWorkflow() error {

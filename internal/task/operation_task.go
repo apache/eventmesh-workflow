@@ -43,7 +43,7 @@ func NewOperationTask(instance *model.WorkflowTaskInstance) Task {
 	if len(instance.Task.ChildTasks) > 0 {
 		t.transition = instance.Task.ChildTasks[0]
 	}
-	t.baseTask.queue = queue.GetQueue(config.GlobalConfig().Flow.Queue.Store)
+	t.queue = queue.GetQueue(config.GlobalConfig().Flow.Queue.Store)
 	t.workflowDAL = dal.NewWorkflowDAL()
 	return &t
 }
@@ -59,8 +59,8 @@ func (t *operationTask) Run() error {
 	var taskInstanceID = uuid.New().String()
 	var taskInstance = model.WorkflowTaskInstance{WorkflowInstanceID: t.workflowInstanceID, WorkflowID: t.workflowID,
 		TaskID: t.transition.ToTaskID, TaskInstanceID: taskInstanceID, Status: constants.TaskInstanceSleepStatus,
-		Input: t.baseTask.input}
-	if err := t.baseTask.queue.Publish([]*model.WorkflowTaskInstance{&taskInstance}); err != nil {
+		Input: t.input}
+	if err := t.queue.Publish([]*model.WorkflowTaskInstance{&taskInstance}); err != nil {
 		return err
 	}
 	return t.runAction(taskInstanceID)
