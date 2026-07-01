@@ -25,6 +25,8 @@ type ObserveQueue interface {
 	Ack(tasks *model.WorkflowTaskInstance) error
 
 	Observe()
+
+	UnSubscribe() error
 }
 
 var queueFactory = make(map[string]ObserveQueue)

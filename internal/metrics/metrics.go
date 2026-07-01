@@ -187,7 +187,7 @@ func (p *Metrics) getCollectorByNameAndType(name string, collectorType int) (pro
 	case histogram:
 		return p.histograms[name], nil
 	case gauge:
-		return p.histograms[name], nil
+		return p.gauges[name], nil
 	default:
 		return nil, fmt.Errorf("prometheus metrics get collector error, illegal collector type: %d", collectorType)
 	}

@@ -79,6 +79,10 @@ func (q *inMemoryQueue) Observe() {
 		}
 	}()
 }
+
+func (q *inMemoryQueue) UnSubscribe() error {
+	return nil
+}
 func (q *inMemoryQueue) handle(item rxgo.Item) {
 	v, ok := item.V.(*model.WorkflowTaskInstance)
 	if !ok {

@@ -129,6 +129,10 @@ func (q *eventMeshQueue) Observe() {
 	}
 }
 
+func (q *eventMeshQueue) UnSubscribe() error {
+	return nil
+}
+
 func (q *eventMeshQueue) handler(message *sdk_pb.SimpleMessage) interface{} {
 	_ = metrics.Dec(constants.MetricsTaskQueue, fmt.Sprintf("%s_%s", q.Name(), constants.MetricsQueueSize))
 	workflowTask, err := q.toWorkflowTask(message)

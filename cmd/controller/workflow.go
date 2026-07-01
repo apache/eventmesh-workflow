@@ -16,10 +16,13 @@
 package main
 
 import (
+	"context"
+	"net/http"
+
+	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/flow"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/dal"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/dal/model"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 const (
@@ -29,11 +32,13 @@ const (
 // WorkflowController workflow controller operations
 type WorkflowController struct {
 	workflowDAL dal.WorkflowDAL
+	engine       *flow.Engine
 }
 
 func NewWorkflowController() *WorkflowController {
 	c := WorkflowController{}
 	c.workflowDAL = dal.NewWorkflowDAL()
+	c.engine = flow.NewEngine()
 	return &c
 }
 
@@ -141,6 +146,43 @@ func (c *WorkflowController) Delete(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, nil)
+}
+
+// StartWorkflowRequest start workflow request
+type StartWorkflowRequest struct {
+	WorkflowID string `json:"workflow_id" binding:"required"`
+	Input      string `json:"input"`
+}
+
+// StartWorkflowResponse start workflow response
+type StartWorkflowResponse struct {
+	InstanceID string `json:"instance_id"`
+}
+
+// Start start a workflow instance
+// @Summary 	 start a workflow instance
+// @Description  start a workflow instance
+// @Tags         workflow
+// @Accept       json
+// @Produce      json
+// @Param 		 request body StartWorkflowRequest true "start request"
+// @Success      200  {object} StartWorkflowResponse
+// @Failure      400
+// @Failure      500
+// @Router       /workflow/start [post]
+func (c *WorkflowController) Start(ctx *gin.Context) {
+	request := StartWorkflowRequest{}
+	if err := ctx.ShouldBind(&request); err != nil {
+		ctx.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+	param := &flow.WorkflowParam{ID: request.WorkflowID, Input: request.Input}
+	instanceID, err := c.engine.Start(context.Background(), param)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, err.Error())
+		return
+	}
+	ctx.JSON(http.StatusOK, StartWorkflowResponse{InstanceID: instanceID})
 }
 
 // QueryInstances query workflow instances
