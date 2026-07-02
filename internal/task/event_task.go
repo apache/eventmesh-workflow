@@ -35,17 +35,20 @@ func NewEventTask(instance *model.WorkflowTaskInstance) Task {
 	if instance == nil || instance.Task == nil {
 		return nil
 	}
-	t.baseTask = baseTask{taskID: instance.TaskID, taskInstanceID: instance.TaskInstanceID, input: instance.Input,
-		workflowID: instance.WorkflowID, workflowInstanceID: instance.WorkflowInstanceID, taskType: instance.Task.TaskType}
-	t.action = instance.Task.Actions[0]
-	t.transition = instance.Task.ChildTasks[0]
+	t.baseTask = newBaseTask(instance)
+	if len(instance.Task.Actions) > 0 {
+		t.action = instance.Task.Actions[0]
+	}
+	if len(instance.Task.ChildTasks) > 0 {
+		t.transition = instance.Task.ChildTasks[0]
+	}
 	t.operationTask = NewOperationTask(instance)
 	t.flowEngine = flow.NewEngine()
 	return &t
 }
 
 func (t *eventTask) Run() error {
-	metrics.Inc(constants.MetricsEventTask, constants.MetricsTotal)
+	_ = metrics.Inc(constants.MetricsEventTask, constants.MetricsTotal)
 	if t.transition == nil {
 		return nil
 	}

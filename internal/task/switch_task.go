@@ -18,6 +18,8 @@ package task
 import (
 	"context"
 	"encoding/json"
+	"strconv"
+
 	"github.com/apache/incubator-eventmesh/eventmesh-server-go/config"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/constants"
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/internal/dal"
@@ -27,7 +29,6 @@ import (
 	"github.com/apache/incubator-eventmesh/eventmesh-workflow-go/third_party/jqer"
 	"github.com/gogf/gf/util/gconv"
 	"github.com/google/uuid"
-	"strconv"
 )
 
 type switchTask struct {
@@ -41,50 +42,70 @@ func NewSwitchTask(instance *model.WorkflowTaskInstance) Task {
 	if instance == nil || instance.Task == nil {
 		return nil
 	}
-	t.baseTask = baseTask{taskID: instance.TaskID, input: instance.Input,
-		workflowID: instance.WorkflowID, workflowInstanceID: instance.WorkflowInstanceID,
-		taskType: instance.Task.TaskType}
+	t.baseTask = newBaseTask(instance)
 	t.transitions = instance.Task.ChildTasks
-	t.baseTask.queue = queue.GetQueue(config.GlobalConfig().Flow.Queue.Store)
+	t.queue = queue.GetQueue(config.GlobalConfig().Flow.Queue.Store)
 	t.workflowDAL = dal.NewWorkflowDAL()
 	t.jq = jqer.NewJQ()
 	return &t
 }
 
 func (t *switchTask) Run() error {
-	metrics.Inc(constants.MetricsSwitchTask, constants.MetricsTotal)
+	_ = metrics.Inc(constants.MetricsSwitchTask, constants.MetricsTotal)
 	if len(t.transitions) == 0 {
 		return nil
 	}
+	var defaultTransition *model.WorkflowTaskRelation
 	for _, transition := range t.transitions {
-		if transition.ToTaskID == constants.TaskEndID {
+		if transition == nil {
 			continue
 		}
-		var jqData interface{}
-		err := json.Unmarshal([]byte(t.input), &jqData)
-		if err != nil {
-			return err
-		}
-		res, err := t.jq.One(jqData, transition.Condition)
-		if err != nil {
-			return err
-		}
-		boolValue, err := strconv.ParseBool(gconv.String(res))
-		if err != nil {
-			return err
-		}
-		if !boolValue {
-			metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchReject)
+		if transition.Condition == "" {
+			defaultTransition = transition
 			continue
 		}
-
-		metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchPass)
-		var taskInstance = model.WorkflowTaskInstance{WorkflowInstanceID: t.workflowInstanceID,
-			WorkflowID: t.workflowID, TaskID: transition.ToTaskID, TaskInstanceID: uuid.New().String(),
-			Status: constants.TaskInstanceWaitStatus, Input: t.baseTask.input}
-		return t.baseTask.queue.Publish([]*model.WorkflowTaskInstance{&taskInstance})
+		matched, err := t.matchCondition(transition.Condition)
+		if err != nil {
+			return err
+		}
+		if !matched {
+			_ = metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchReject)
+			continue
+		}
+		_ = metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchPass)
+		return t.publishOrComplete(transition)
 	}
-	// not match
+	if defaultTransition != nil {
+		_ = metrics.Inc(constants.MetricsSwitchTask, constants.MetricsSwitchPass)
+		return t.publishOrComplete(defaultTransition)
+	}
+	return t.completeWorkflow()
+}
+
+func (t *switchTask) matchCondition(condition string) (bool, error) {
+	var jqData interface{}
+	err := json.Unmarshal([]byte(t.input), &jqData)
+	if err != nil {
+		return false, err
+	}
+	res, err := t.jq.One(jqData, condition)
+	if err != nil {
+		return false, err
+	}
+	return strconv.ParseBool(gconv.String(res))
+}
+
+func (t *switchTask) publishOrComplete(transition *model.WorkflowTaskRelation) error {
+	if transition == nil || transition.ToTaskID == constants.TaskEndID {
+		return t.completeWorkflow()
+	}
+	var taskInstance = model.WorkflowTaskInstance{WorkflowInstanceID: t.workflowInstanceID,
+		WorkflowID: t.workflowID, TaskID: transition.ToTaskID, TaskInstanceID: uuid.New().String(),
+		Status: constants.TaskInstanceWaitStatus, Input: t.input}
+	return t.queue.Publish([]*model.WorkflowTaskInstance{&taskInstance})
+}
+
+func (t *switchTask) completeWorkflow() error {
 	return t.workflowDAL.UpdateInstance(context.Background(),
 		&model.WorkflowInstance{WorkflowInstanceID: t.workflowInstanceID,
 			WorkflowStatus: constants.WorkflowInstanceSuccessStatus})

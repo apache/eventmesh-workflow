@@ -97,6 +97,7 @@ func (s *Server) router() {
 	s.server.GET("/workflow/:workflowId", s.workflow.QueryDetail)
 	s.server.DELETE("/workflow/:workflowId", s.workflow.Delete)
 	s.server.GET("/workflow/instances", s.workflow.QueryInstances)
+	s.server.POST("/workflow/start", s.workflow.Start)
 }
 
 func (s *Server) setupConfig() error {

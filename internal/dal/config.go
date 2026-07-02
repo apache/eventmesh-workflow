@@ -31,8 +31,10 @@ var workflowDB *gorm.DB
 var workflowLock *dblock.MysqlLocker
 
 func Open() error {
-	var err error
 	d, err := sql.Open("mysql", pmysql.PluginConfig.DSN)
+	if err != nil {
+		return err
+	}
 	d.SetMaxOpenConns(pmysql.PluginConfig.MaxOpen)
 	d.SetMaxIdleConns(pmysql.PluginConfig.MaxIdle)
 	d.SetConnMaxLifetime(time.Millisecond * time.Duration(pmysql.PluginConfig.MaxLifetime))

@@ -106,11 +106,15 @@ func (s *inlineScheduler) lock(h func() error) error {
 	start := time.Now()
 	l, err := dal.GetLockClient().ObtainTimeout(schedulerLockKey, schedulerLockTimeout)
 	elapsed := time.Since(start).Milliseconds()
-	metrics.RecordLatency(constants.MetricsScheduler, constants.MetricsDbLockAcquireTime, float64(elapsed))
+	_ = metrics.RecordLatency(constants.MetricsScheduler, constants.MetricsDbLockAcquireTime, float64(elapsed))
 	if err != nil {
 		return err
 	}
-	defer l.Release()
+	defer func() {
+		if relErr := l.Release(); relErr != nil {
+			log.Get(constants.LogSchedule).Errorf("fail to release scheduler lock: %v", relErr)
+		}
+	}()
 	return h()
 }
 

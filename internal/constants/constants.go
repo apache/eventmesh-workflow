@@ -57,6 +57,17 @@ const (
 	TaskTypeOperation = "operation"
 	TaskTypeEvent     = "event"
 	TaskTypeSwitch    = "switch"
+	TaskTypeSet       = "set"
+	TaskTypeDo        = "do"
+	TaskTypeFork      = "fork"
+	TaskTypeFor       = "for"
+	TaskTypeTry       = "try"
+	TaskTypeWait      = "wait"
+	TaskTypeRaise     = "raise"
+	TaskTypeRun       = "run"
+	TaskTypeEmit      = "emit"
+	TaskTypeListen    = "listen"
+	TaskTypeCall      = "call"
 )
 
 const (
