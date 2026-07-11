@@ -104,7 +104,7 @@ create table if not exists t_workflow_task_relation
     status       int                                not null,
     create_time  datetime default CURRENT_TIMESTAMP not null,
     update_time  datetime default CURRENT_TIMESTAMP not null,
-    index `index_from_task_id` (from_task_id)
+    index `index_from_task_id` (from_task_id),
     index `index_workflow_id` (workflow_id)
     )
     collate = utf8mb3_bin;
